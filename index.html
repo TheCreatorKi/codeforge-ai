@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>CodeForge AI MVP</title>
+</head>
+<body>
+    <h1>CodeForge AI</h1>
+    <p>Gib dein Projekt ein und klicke "Generieren"</p>
+    <input type="text" id="projectInput" placeholder="Projektidee z. B. Todo-App">
+    <button onclick="generate()">Generieren</button>
+
+    <pre id="output"></pre>
+
+    <script>
+        function generate() {
+            const project = document.getElementById("projectInput").value;
+            // Simulierter KI-Aufruf
+            const code = `// Dein Mini-Code für Projekt: ${project}\nconsole.log("Hello World!");`;
+            document.getElementById("output").innerText = code;
+        }
+    </script>
+</body>
+</html>
