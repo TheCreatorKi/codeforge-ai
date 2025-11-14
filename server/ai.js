@@ -46,3 +46,77 @@ async function demo() {
 }
 
 demo();
+const fs = require('fs');
+const path = require('path');
+
+// Hilfsfunktion: Platzhalter ersetzen
+function renderTemplate(content, vars){
+  return content.replace(/{{\s*([A-Z0-9_]+)\s*}}/g, (_, key) => vars[key] || '');
+}
+
+// Alle Template-Dateien laden und rendern
+function loadTemplateFiles(templateName, vars){
+  const base = path.join(__dirname, '..', 'templates', templateName);
+  const files = [];
+
+  function walk(dir, rel=""){
+    const items = fs.readdirSync(dir);
+    for(const item of items){
+      const full = path.join(dir, item);
+      const stat = fs.statSync(full);
+      if(stat.isDirectory()) walk(full, rel + item + "/");
+      else {
+        const content = fs.readFileSync(full, 'utf8');
+        const rendered = renderTemplate(content, vars);
+        files.push({ path: `generated/${vars.APP_SLUG}/${rel}${item}`, content: rendered });
+      }
+    }
+  }
+
+  walk(base);
+  return files;
+}
+const { Octokit } = require("@octokit/rest");
+const octokit = new Octokit({ auth: GITHUB_TOKEN });
+
+function sanitizeSlug(name){
+  return name.toLowerCase().replace(/[^a-z0-9\-]/g,'-').replace(/-+/g,'-').replace(/(^-|-$)/g,'');
+}
+
+async function createOrUpdateFile(owner, repo, path, content, message){
+  const b64 = Buffer.from(content, 'utf8').toString('base64');
+  try {
+    const { data } = await octokit.repos.getContent({ owner, repo, path });
+    const sha = data.sha;
+    await octokit.repos.createOrUpdateFileContents({
+      owner, repo, path, message, content: b64, sha,
+      committer: {name: "CodeForge AI", email: "codeforge@example.com"},
+      author: {name: "CodeForge AI", email: "codeforge@example.com"}
+    });
+  } catch (err) {
+    if(err.status === 404){
+      await octokit.repos.createOrUpdateFileContents({
+        owner, repo, path, message, content: b64,
+        committer: {name: "CodeForge AI", email: "codeforge@example.com"},
+        author: {name: "CodeForge AI", email: "codeforge@example.com"}
+      });
+    } else throw err;
+  }
+}
+
+async function pushMultipleFiles(files, projectName){
+  const commitMsg = `Auto-generate: ${projectName}`;
+  for(const file of files){
+    await createOrUpdateFile(REPO_OWNER, REPO_NAME, file.path, file.content, commitMsg);
+  }
+}
+async function generateProject(projectBrief){
+  const projectName = projectBrief.trim() || "Demo Project";
+  const slug = sanitizeSlug(projectName);
+  const vars = { APP_NAME: projectName, APP_SLUG: slug };
+
+  const files = loadTemplateFiles('todo', vars); // wir nehmen Todo-Template
+  await pushMultipleFiles(files, projectName);
+
+  return { success:true, path:`generated/${slug}/` };
+}
