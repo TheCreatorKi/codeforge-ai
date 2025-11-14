@@ -1,60 +1,24 @@
-// server/ai.js
+const fs = require('fs');
+const path = require('path');
 const { Octokit } = require("@octokit/rest");
-const axios = require("axios");
 
-// === GitHub Setup ===
-// Ersetze diese Variablen mit deinen eigenen Daten
-const GITHUB_TOKEN = "ghp_8f1HxyJKL3123abcd98XYZ123456789";
+// === 1️⃣ GitHub-Zugang ===
+const GITHUB_TOKEN = "<DEIN_PERSONAL_ACCESS_TOKEN>";
 const REPO_OWNER = "<DEIN_GITHUB_USERNAME>";
-const REPO_NAME = "codeforge-ai";
+const REPO_NAME = "<DEIN_REPO_NAME>";
 
 const octokit = new Octokit({ auth: GITHUB_TOKEN });
 
-// === KI-Generierung (erstmal über OpenAI API) ===
-async function generateCode(projectBrief) {
-    // Für jetzt simulieren wir die KI
-    const simulatedCode = `// CodeForge AI generiert: ${projectBrief}\nconsole.log("Hello World!");`;
-    return simulatedCode;
-}
-
-// === Code in GitHub pushen ===
-async function pushToGitHub(filename, content) {
-    const response = await octokit.repos.createOrUpdateFileContents({
-        owner: REPO_OWNER,
-        repo: REPO_NAME,
-        path: filename,
-        message: `Automatisch generierter Code: ${filename}`,
-        content: Buffer.from(content).toString("base64"),
-        committer: {
-            name: "CodeForge AI",
-            email: "codeforge@example.com"
-        },
-        author: {
-            name: "CodeForge AI",
-            email: "codeforge@example.com"
-        }
-    });
-    return response.data;
-}
-
-// Beispiel-Aufruf
-async function demo() {
-    const project = "Todo App";
-    const code = await generateCode(project);
-    console.log("Generierter Code:\n", code);
-    await pushToGitHub(`generated/${project.replace(/\s/g,"_")}.js`, code);
-}
-
-demo();
-const fs = require('fs');
-const path = require('path');
-
-// Hilfsfunktion: Platzhalter ersetzen
+// === 2️⃣ Hilfsfunktionen ===
 function renderTemplate(content, vars){
   return content.replace(/{{\s*([A-Z0-9_]+)\s*}}/g, (_, key) => vars[key] || '');
 }
 
-// Alle Template-Dateien laden und rendern
+function sanitizeSlug(name){
+  return name.toLowerCase().replace(/[^a-z0-9\-]/g,'-').replace(/-+/g,'-').replace(/(^-|-$)/g,'');
+}
+
+// === 3️⃣ Template laden ===
 function loadTemplateFiles(templateName, vars){
   const base = path.join(__dirname, '..', 'templates', templateName);
   const files = [];
@@ -76,13 +40,8 @@ function loadTemplateFiles(templateName, vars){
   walk(base);
   return files;
 }
-const { Octokit } = require("@octokit/rest");
-const octokit = new Octokit({ auth: GITHUB_TOKEN });
 
-function sanitizeSlug(name){
-  return name.toLowerCase().replace(/[^a-z0-9\-]/g,'-').replace(/-+/g,'-').replace(/(^-|-$)/g,'');
-}
-
+// === 4️⃣ Dateien nach GitHub pushen ===
 async function createOrUpdateFile(owner, repo, path, content, message){
   const b64 = Buffer.from(content, 'utf8').toString('base64');
   try {
@@ -110,13 +69,18 @@ async function pushMultipleFiles(files, projectName){
     await createOrUpdateFile(REPO_OWNER, REPO_NAME, file.path, file.content, commitMsg);
   }
 }
+
+// === 5️⃣ Projekt generieren ===
 async function generateProject(projectBrief){
   const projectName = projectBrief.trim() || "Demo Project";
   const slug = sanitizeSlug(projectName);
   const vars = { APP_NAME: projectName, APP_SLUG: slug };
 
-  const files = loadTemplateFiles('todo', vars); // wir nehmen Todo-Template
+  const files = loadTemplateFiles('todo', vars);
   await pushMultipleFiles(files, projectName);
 
   return { success:true, path:`generated/${slug}/` };
 }
+
+// Export für API-Endpunkt
+module.exports = { generateProject };
