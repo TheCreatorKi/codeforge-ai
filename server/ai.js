@@ -4,7 +4,7 @@ const axios = require("axios");
 
 // === GitHub Setup ===
 // Ersetze diese Variablen mit deinen eigenen Daten
-const GITHUB_TOKEN = "<DEIN_PERSONAL_ACCESS_TOKEN>";
+const GITHUB_TOKEN = "ghp_8f1HxyJKL3123abcd98XYZ123456789";
 const REPO_OWNER = "<DEIN_GITHUB_USERNAME>";
 const REPO_NAME = "codeforge-ai";
 
